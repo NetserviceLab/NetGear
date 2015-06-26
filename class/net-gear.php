@@ -89,6 +89,7 @@ abstract class NetGear{
         $this->page_controllers = array();
         //
         $this->load_deps_in_folder('controller');
+        $this->load_deps_in_folder('hooks');
         //
         global $wpdb;
         $this->wpdb = $wpdb;
@@ -144,10 +145,14 @@ abstract class NetGear{
      */
     private function generate_hooks() {
         foreach($this->actions as $h){
-            add_action($h['hook'],array($this,'apply_action'),$h['id']);
+            /** @var NetGearAction $a */
+            $a = $h['component'];
+            add_action($h['hook'],array($a,'get'),$a->getPriority(),$a->getAcceptedArgs());
         }
         foreach($this->filters as $h){
-            add_filter($h['hook'],array($this,'apply_filter'),$h['id']);
+            /** @var NetGearFilter $a */
+            $f = $h['component'];
+            add_filter($h['hook'],array($f,'get'),$f->getPriority(),$f->getAcceptedArgs());
         }
     }
 
@@ -203,6 +208,9 @@ abstract class NetGear{
 
     private function load_deps_in_folder($folder){
         $path = $this->plugin_dir_path().$folder;
+        if(!file_exists($path)){
+            return;
+        }
         $files = scandir($path);
         foreach($files as $f){
             if($f == '.' || $f == '..'){
@@ -287,8 +295,7 @@ abstract class NetGear{
     public final function addAction($hook, NetGearAction $action) {
         array_push($this->actions, array(
             'hook'      => $hook,
-            'component' => $action,
-            'id'=>count($this->actions)
+            'component' => $action
         ));
         return $this;
     }
@@ -301,8 +308,7 @@ abstract class NetGear{
     public final function addFilter($hook, NetGearFilter $filter) {
         array_push($this->filters, array(
             'hook'      => $hook,
-            'component' => $filter,
-            'id'=>count($this->filters)
+            'component' => $filter
         ));
         return $this;
     }
@@ -315,36 +321,6 @@ abstract class NetGear{
      */
     public function wpdb(){
         return $this->wpdb;
-    }
-
-
-    /**
-     * Applica la action, non dovrebbe essere mai chiamata dal programmatore ma solo da Wordpress
-     * @param $id
-     * @throws Exception
-     */
-    public final function apply_action($id){
-        if(array_key_exists($id,$this->actions)){
-            throw new Exception("L'azione cercata non esiste");
-        }
-        /** @var NetGearAction $action */
-        $action = $this->actions[$id];
-        $action->get();
-    }
-
-    /**
-     * Applica il filtro, non dovrebbe essere mai chiamata dal programmatore ma solo da Wordpress
-     * @param $id
-     * @return mixed
-     * @throws Exception
-     */
-    public final function apply_filter($id){
-        if(array_key_exists($id,$this->filters)){
-            throw new Exception("Il filtro cercato non esiste");
-        }
-        /** @var NetGearFilter $filters */
-        $filters = $this->filters[$id];
-        return $filters->get();
     }
 
 
