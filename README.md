@@ -61,7 +61,8 @@ class YourPluginClass extends NetGear{
     }
 }
 ```
-This is the minimal required to build a plugin
+
+The plugin class name have to be the camel case version of the plugin folder name and the file have to have the same name of the class. This is the minimal request to build a plugin.
 
 ### HelloWorld example
 **Plugin Class File**
