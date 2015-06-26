@@ -15,6 +15,7 @@ Firt of all the folder structure:
     ·······/[your-plugin-name]/
     ··························/controller/
     ··························/views/
+    ··························/public/
     ··························/[your-plugin-class-file].php
     ··························/plugin.php
 
@@ -75,6 +76,7 @@ class MyHelloWorldPlugin extends NetGear{
 }
 ```
 **MyFirstController Class File**
+
 *controller/MyFirstController.php*
 ```php
 class MyFirstController extends NetGearPageController{
