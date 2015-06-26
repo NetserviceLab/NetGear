@@ -91,7 +91,7 @@ class MyFirstController extends NetGearPageController{
     }
 
     public function defaultAction(){
-        echo "Hello world!"
+        echo "<div id="my-hello-world">Hello world!</div>"
     }
   }
 ```
