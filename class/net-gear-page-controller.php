@@ -4,7 +4,6 @@ abstract class NetGearPageController{
     private $bootstraped;
     private $sub_controllers;
     private $twig_functions;
-    private $file;
     /** @var  wpdb $wpdb */
     private $wpdb;
     /** @var  NetGear $plugin */
@@ -69,7 +68,9 @@ abstract class NetGearPageController{
     }
 
     private function pluginBaseDir(){
-        $ar = explode('/',dirname($this->file));
+        $ar = explode('/', $this->getPlugin()->plugin_dir_path() );
+        // tolgo lo slash finali
+        array_pop($ar);
         return (end($ar).'/');
     }
 
@@ -103,10 +104,9 @@ abstract class NetGearPageController{
     /**
      * @param $file __FILE__
      */
-    public final function __construct($file){
+    public final function __construct(){
         $this->bootstraped = false;
         $this->sub_controllers = array();
-        $this->file = $file;
         //
         global $wpdb;
         $this->wpdb = $wpdb;
@@ -229,10 +229,10 @@ abstract class NetGearPageController{
 
     /**
      * Imposta il plugin padre
-     * @param $plugin
+     * @param NetGear $plugin
      * @return $this
      */
-    public final function setPlugin($plugin){
+    public final function setPlugin(NetGear $plugin){
         $this->plugin = $plugin;
         return $this;
     }
