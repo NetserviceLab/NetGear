@@ -80,6 +80,8 @@ class MyHelloWorldPlugin extends NetGear{
 
 *controller/MyFirstController.php*
 ```php
+<?php
+
 class MyFirstController extends NetGearPageController{
     public function getMenuTitle(){
         return "Hello world";
