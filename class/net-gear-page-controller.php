@@ -4,6 +4,7 @@ abstract class NetGearPageController{
     private $bootstraped;
     private $sub_controllers;
     private $twig_functions;
+    private $file;
     /** @var  wpdb $wpdb */
     private $wpdb;
     /** @var  NetGear $plugin */
@@ -18,6 +19,11 @@ abstract class NetGearPageController{
 
     /************************   PROTECTED METHODS   ***********************/
 
+    /**
+     * @param $view
+     * @param mixed|null $data
+     * @throws Exception
+     */
     protected function display($view, $data=null)
     {
         if (!class_exists('WP_Twig_Templating')) {
@@ -25,10 +31,10 @@ abstract class NetGearPageController{
         }
         if (!$data) $data = array();
 
-        $other = ['controller'=>$this];
+        $other = ['controller'=>$this,'currentPluginTwigBasePath' => $this->pluginBaseDir().'/views/'];
 
         $_data = array_merge($data,$other);
-        WP_Twig_Templating::istance()->displayCustomPage($this->pluginBaseDir() . $view, $_data);
+        WP_Twig_Templating::istance()->displayCustomPage($this->pluginBaseDir().'/views/' . $view, $_data);
     }
 
     public function addTwigFunction($name, $function){
@@ -68,9 +74,7 @@ abstract class NetGearPageController{
     }
 
     private function pluginBaseDir(){
-        $ar = explode('/', $this->getPlugin()->plugin_dir_path() );
-        // tolgo lo slash finali
-        array_pop($ar);
+        $ar = explode('/',dirname($this->file));
         return (end($ar).'/');
     }
 
@@ -102,11 +106,12 @@ abstract class NetGearPageController{
     /************************   PUBLIC METHODS   ***********************/
 
     /**
-     * @param $file __FILE__
+     * @param $file string __FILE__
      */
-    public final function __construct(){
+    public final function __construct($file){
         $this->bootstraped = false;
         $this->sub_controllers = array();
+        $this->file = $file;
         //
         global $wpdb;
         $this->wpdb = $wpdb;
@@ -124,22 +129,6 @@ abstract class NetGearPageController{
     }
 
     /**
-     * Ritorna il percorso dell'icona di menu
-     * @return null|string
-     */
-    public function getIconUrl(){
-        return null;
-    }
-
-    /**
-     * Ritorna la posizione della voce di menu nell'elenco
-     * @return null|integer
-     */
-    public function getMenuPosition(){
-        return null;
-    }
-
-    /**
      * Aggiunge un sottocontroller con relativo link al menu del controller
      * @param NetGearPageController $page
      */
@@ -147,7 +136,6 @@ abstract class NetGearPageController{
         $slug = $this->getSlug() . '_'. get_class($page).'_'.count($this->sub_controllers);
         array_push($this->sub_controllers, $page->setSlug($slug));
         $page->setPlugin($this->getPlugin());
-        //todo set parent controller
         $page->bootstrap();
     }
 
@@ -157,6 +145,21 @@ abstract class NetGearPageController{
      */
     public final function getSubPageControllers(){
         return $this->sub_controllers;
+    }
+
+    /**
+     * Ritorna il percorso dell'icona di menu
+     * @return null|string
+     */
+    public function getIconUrl(){
+        return null;
+    }
+    /**
+     * Ritorna la posizione della voce di menu nell'elenco
+     * @return null|float
+     */
+    public function getMenuPosition(){
+        return null;
     }
 
     /**
@@ -215,7 +218,7 @@ abstract class NetGearPageController{
         if(method_exists($this,$method)){
             call_user_func(array($this,$method));
         }else{
-            throw new Execption("$method not exists!");
+            throw new Exception("$method not exists!");
         }
     }
 
@@ -229,10 +232,10 @@ abstract class NetGearPageController{
 
     /**
      * Imposta il plugin padre
-     * @param NetGear $plugin
+     * @param $plugin
      * @return $this
      */
-    public final function setPlugin(NetGear $plugin){
+    public final function setPlugin($plugin){
         $this->plugin = $plugin;
         return $this;
     }

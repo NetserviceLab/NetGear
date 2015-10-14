@@ -32,8 +32,10 @@ abstract class NetGear{
     }
 
     /**
+     * /**
      * Carica la classe principale del plugin e la istanzia
-     * @param $file percorso del file plugin.php
+     * @param $file string percorso del file plugin.php
+     * @throws Exception
      */
     public final static function bootstrapPlugin($file){
         $path = dirname($file);
@@ -42,6 +44,7 @@ abstract class NetGear{
         $plugin_class_name = implode("",explode(" ",ucwords(str_replace("-"," ",$plugin_dir))));
 
         $filename = $path.'/'.$plugin_class_name.'.php';
+
         if(!file_exists($filename)){
             self::alert("Il plugin '.$plugin_class_name.' non esiste");
             return;
@@ -89,7 +92,6 @@ abstract class NetGear{
         $this->page_controllers = array();
         //
         $this->load_deps_in_folder('controller');
-        $this->load_deps_in_folder('hooks');
         //
         global $wpdb;
         $this->wpdb = $wpdb;
@@ -145,14 +147,11 @@ abstract class NetGear{
      */
     private function generate_hooks() {
         foreach($this->actions as $h){
-            /** @var NetGearAction $a */
-            $a = $h['component'];
-            add_action($h['hook'],array($a,'get'),$a->getPriority(),$a->getAcceptedArgs());
+//            add_action($h['hook'],array($this,'apply_action'),$h['id']);
+            add_action($h['hook'],array($this,'apply_action'),10,1);
         }
         foreach($this->filters as $h){
-            /** @var NetGearFilter $a */
-            $f = $h['component'];
-            add_filter($h['hook'],array($f,'get'),$f->getPriority(),$f->getAcceptedArgs());
+            add_filter($h['hook'],array($this,'apply_filter'),10,1);
         }
     }
 
@@ -208,9 +207,6 @@ abstract class NetGear{
 
     private function load_deps_in_folder($folder){
         $path = $this->plugin_dir_path().$folder;
-        if(!file_exists($path)){
-            return;
-        }
         $files = scandir($path);
         foreach($files as $f){
             if($f == '.' || $f == '..'){
@@ -293,10 +289,11 @@ abstract class NetGear{
      * @return $this
      */
     public final function addAction($hook, NetGearAction $action) {
-        array_push($this->actions, array(
-            'hook'      => $hook,
-            'component' => $action
-        ));
+        $this->actions[$hook] = array(
+            'hook'      =>  $hook,
+            'component' =>  $action,
+            'id'        =>  $hook //count($this->filters)
+        );
         return $this;
     }
     /**
@@ -306,10 +303,11 @@ abstract class NetGear{
      * @return $this
      */
     public final function addFilter($hook, NetGearFilter $filter) {
-        array_push($this->filters, array(
-            'hook'      => $hook,
-            'component' => $filter
-        ));
+        $this->filters[$hook] = array(
+            'hook'      =>  $hook,
+            'component' =>  $filter,
+            'id'        =>  $hook //count($this->filters)
+        );
         return $this;
     }
 
@@ -325,14 +323,59 @@ abstract class NetGear{
 
 
     /**
+     * Applica la action, non dovrebbe essere mai chiamata dal programmatore ma solo da Wordpress
+     * @param $id
+     * @throws Exception
+     */
+    public final function apply_action($id){
+        if( !array_key_exists($id,$this->actions)){
+            throw new Exception("L'azione cercata non esiste");
+        }
+        /** @var NetGearAction $action */
+        $action = $this->actions[$id]["component"];
+        $action->get();
+    }
+
+    /**
+     * Applica il filtro, non dovrebbe essere mai chiamata dal programmatore ma solo da Wordpress
+     * @param $id
+     * @return mixed
+     * @throws Exception
+     */
+    public final function apply_filter($id){
+        if( !array_key_exists($id,$this->filters)){
+            throw new Exception("Il filtro cercato non esiste");
+        }
+        /** @var NetGearFilter $filters */
+        $filters = $this->filters[$id]["component"];
+        $return = $filters->get();
+        return $return != $id ? $return : null;
+    }
+
+
+    /**
      * Genera i menu per i page controller
      */
     public final function generate_menu_page(){
         /** @var $page_controllers $page */
         foreach($this->page_controllers as $page){
-            add_menu_page($page->getPageTitle(),$page->getMenuTitle(),$page->getCapability(),$page->getSlug(),array($page,'render_page'),$page->getIconUrl(),$page->getMenuPosition());
+            add_menu_page(
+                $page->getPageTitle(),
+                $page->getMenuTitle(),
+                $page->getCapability(),
+                $page->getSlug(),
+                array($page,'render_page'),$page->getIconUrl(),
+                $page->getMenuPosition()
+            );
             foreach($page->getSubPageControllers() as $subpage){
-                add_submenu_page($page->getSlug(),$subpage->getPageTitle(),$subpage->getMenuTitle(),$subpage->getCapability(),$subpage->getSlug(),array($subpage,'render_page'),$subpage->getIconUrl(),$subpage->getMenuPosition());
+                add_submenu_page(
+                    $page->getSlug(),
+                    $subpage->getPageTitle(),
+                    $subpage->getMenuTitle(),
+                    $subpage->getCapability(),
+                    $subpage->getSlug(),
+                    array($subpage,'render_page')
+                );
             }
         }
     }
