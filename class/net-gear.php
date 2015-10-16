@@ -92,9 +92,12 @@ abstract class NetGear{
         $this->page_controllers = array();
         //
         $this->load_deps_in_folder('controller');
+        $this->load_deps_in_folder('model');
+        $this->load_deps_in_folder('repository');
         //
         global $wpdb;
         $this->wpdb = $wpdb;
+        require_once dirname(__FILE__).'/net-gear-autoloader.php';
     }
 
     /**
@@ -207,15 +210,17 @@ abstract class NetGear{
 
     private function load_deps_in_folder($folder){
         $path = $this->plugin_dir_path().$folder;
-        $files = scandir($path);
-        foreach($files as $f){
-            if($f == '.' || $f == '..'){
-                continue;
-            }
-            $ar = explode('.',$f);
-            $est = end($ar);
-            if($est == 'php' && file_exists($path.'/'.$f)){
-                include_once $path.'/'.$f;
+        if( file_exists($path) && is_dir($path)){
+            $files = scandir($path);
+            foreach($files as $f){
+                if($f == '.' || $f == '..'){
+                    continue;
+                }
+                $ar = explode('.',$f);
+                $est = end($ar);
+                if($est == 'php' && file_exists($path.'/'.$f)){
+                    include_once $path.'/'.$f;
+                }
             }
         }
     }
