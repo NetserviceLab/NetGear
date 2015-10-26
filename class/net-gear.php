@@ -92,12 +92,11 @@ abstract class NetGear{
         $this->page_controllers = array();
         //
         $this->load_deps_in_folder('controller');
-        $this->load_deps_in_folder('model');
-        $this->load_deps_in_folder('repository');
+//        $this->load_deps_in_folder('model');
+//        $this->load_deps_in_folder('repository');
         //
         global $wpdb;
         $this->wpdb = $wpdb;
-        require_once dirname(__FILE__).'/net-gear-autoloader.php';
     }
 
     /**

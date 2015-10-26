@@ -21,6 +21,15 @@ abstract class NetGearRepositoryBase
         $this->modelClass = str_replace('Repository','',$this->class);
     }
 
+    public static function getInstance()
+    {
+        static $instance = null;
+        if( $instance === null ){
+            $class = get_called_class();
+            $instance = new $class();
+        }
+        return $instance;
+    }
 
     /**
      * @param $criteria
@@ -92,7 +101,7 @@ abstract class NetGearRepositoryBase
      * @param object $sourceObject
      * @return object
      */
-    private function cast($destination, $sourceObject)
+    public function cast($destination, $sourceObject)
     {
         if( empty($sourceObject)){
             return null;

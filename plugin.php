@@ -13,6 +13,8 @@ function bootrap_netgear(){
     require_once $dir . 'net-gear-hook.php';
     require_once $dir . 'net-gear-page-controller.php';
     require_once $dir . 'net-gear.php';
+    require_once $dir.  'net-gear-autoloader.php';
+    new NetGearAutoloader(plugin_dir_path(__FILE__));
     //
     //NetGear::showError();
     NetGear::bootstrap();
