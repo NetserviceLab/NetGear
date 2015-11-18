@@ -2,6 +2,7 @@
 
 abstract class NetGear{
     private $runned;
+    private static $initialized;
     private $file;
     private $version;
     private $styles;
@@ -10,6 +11,8 @@ abstract class NetGear{
     private $filters;
     /** @var NetGearPageController[] $page_controllers */
     private $page_controllers;
+    /** @var NetGearPageController[] $network_page_controllers */
+    private $network_page_controllers;
     /** @var  wpdb $wpdb */
     private $wpdb;
 
@@ -57,7 +60,10 @@ abstract class NetGear{
         if(!($plugin instanceof NetGear)){
             throw new Exception("Il plugin $plugin_class_name deve estendere la classe NetGear");
         }
-        $plugin->init();
+        if( !self::$initialized ){
+            $plugin->init();
+            self::$initialized = true;
+        }
         $plugin->run();
     }
 
@@ -83,6 +89,7 @@ abstract class NetGear{
      */
     public final function __construct($file){
         $this->runned = false;
+        self::$initialized = false;
         $this->file = $file;
         $this->version = 1;
         $this->styles = array();
@@ -90,6 +97,7 @@ abstract class NetGear{
         $this->actions = array();
         $this->filters = array();
         $this->page_controllers = array();
+        $this->network_page_controllers = array();
         //
         $this->load_deps_in_folder('controller');
 //        $this->load_deps_in_folder('model');
@@ -112,6 +120,7 @@ abstract class NetGear{
         $this->runned=true;
         //
         add_action('admin_menu',array($this,'generate_menu_page'));
+        add_action('network_admin_menu', array($this,'generate_network_menu_page'));
     }
 
 
@@ -131,6 +140,9 @@ abstract class NetGear{
      * @return $this
      */
     protected final function addPageController(NetGearPageController $page){
+        if( !is_admin() ){
+            return $this;
+        }
         $slug = get_class($page).'_page_'.count($this->page_controllers);
         if(array_key_exists($slug,$this->page_controllers)){
             return $this;
@@ -141,6 +153,38 @@ abstract class NetGear{
         return $this;
     }
 
+    /**
+     * Aggiunge un controller con relativa pagina per il menu network
+     * @param NetGearPageController $page
+     * @return $this
+     */
+    protected final function addNetworkPageController(NetGearPageController $page){
+        if( !is_admin() ){
+            return $this;
+        }
+        $slug = get_class($page).'_page_'.count($this->network_page_controllers);
+        if(array_key_exists($slug,$this->network_page_controllers)){
+            return $this;
+        }
+        $this->network_page_controllers[$slug] = $page->setSlug($slug);
+        $page->setPlugin($this);
+        $page->bootstrap();
+        return $this;
+    }
+
+    /**
+     * @return array|NetGearPageController[]
+     */
+    public final function getNetworkPageController(){
+        return $this->network_page_controllers;
+    }
+
+    /**
+     * @return array|NetGearPageController[]
+     */
+    public final function getPageController(){
+        return $this->page_controllers;
+    }
 
     /************************   PRIVATE METHODS   ***********************/
 
@@ -162,6 +206,9 @@ abstract class NetGear{
      */
     private function init_controllers() {
         foreach($this->page_controllers as $c){
+            $c->bootstrap();
+        }
+        foreach($this->network_page_controllers as $c){
             $c->bootstrap();
         }
 
@@ -356,6 +403,32 @@ abstract class NetGear{
         return $return != $id ? $return : null;
     }
 
+    /**
+     * Genera i menu per i page controller
+     */
+    public final function generate_network_menu_page(){
+        /** @var $page_controllers $page */
+        foreach($this->network_page_controllers as $page){
+            add_menu_page(
+                $page->getPageTitle(),
+                $page->getMenuTitle(),
+                $page->getCapability(),
+                $page->getSlug(),
+                array($page,'render_page'),$page->getIconUrl(),
+                $page->getMenuPosition()
+            );
+            foreach($page->getSubPageControllers() as $subpage){
+                add_submenu_page(
+                    $page->getSlug(),
+                    $subpage->getPageTitle(),
+                    $subpage->getMenuTitle(),
+                    $subpage->getCapability(),
+                    $subpage->getSlug(),
+                    array($subpage,'render_page')
+                );
+            }
+        }
+    }
 
     /**
      * Genera i menu per i page controller

@@ -19,6 +19,15 @@ abstract class NetGearRepositoryBase
         $this->wpdb = $wpdb;
         $this->class = get_class($this);
         $this->modelClass = str_replace('Repository','',$this->class);
+        if( !class_exists($this->modelClass)){
+            $this->modelClass = class_exists("Model".$this->modelClass) ? "Model".$this->modelClass : null;
+            if( $this->modelClass == null ){
+                $this->modelClass = class_exists($this->modelClass."Model") ? $this->modelClass."Model" : null;
+            }
+        }
+        if( $this->modelClass == null || !class_exists($this->modelClass)){
+            throw new Exception("Non esiste una classe corrispondente al respository ".$this->class. ". Il model attuale e' ".$this->modelClass);
+        }
     }
 
     public static function getInstance()
@@ -63,9 +72,10 @@ abstract class NetGearRepositoryBase
      */
     public function findBy($criteria,$cast = false)
     {
+        $objectArray = array();
         $returnType = $cast ? OBJECT : ARRAY_A;
         $criteria = $this->parseCriteria($criteria);
-        if( class_exists($this->modelClass)){
+        if( class_exists($this->modelClass) ){
             $model = new $this->modelClass();
             $tableName = $this->wpdb->prefix.$model::TABLE_NAME;
 
@@ -73,8 +83,14 @@ abstract class NetGearRepositoryBase
                 SELECT *
                 FROM {$tableName}
                 WHERE {$criteria["where"]}
+                {$criteria["order"]}
             ",$criteria["values"] ),$returnType);
-            return $cast ? $this->cast($this->modelClass,$res) : $res;
+            if( $cast ){
+                foreach ($res as $row) {
+                    $objectArray[] = $this->cast($this->modelClass,$row);
+                }
+            }
+            return $cast ? $objectArray : $res;
         }
         return null;
     }
@@ -84,13 +100,17 @@ abstract class NetGearRepositoryBase
         $where = '1=1';
         $values = [];
         foreach ($criteria as $column => $value) {
+            if( $column == "order" ){
+                continue;
+            }
             $type = is_numeric($value) ? '%d' : '%s';
             $where .= ' AND '.$column.'= '.$type;
             $values[] = $value;
         }
         return array(
             'where'     =>  $where,
-            'values'    =>  $values
+            'values'    =>  $values,
+            "order"     =>  isset($criteria["order"]) ? " ORDER BY ". $criteria["order"] : ""
         );
     }
 
