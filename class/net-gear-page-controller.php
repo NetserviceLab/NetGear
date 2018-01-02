@@ -19,6 +19,11 @@ abstract class NetGearPageController{
 
     /************************   PROTECTED METHODS   ***********************/
 
+    /**
+     * @param $view
+     * @param mixed|null $data
+     * @throws Exception
+     */
     protected function display($view, $data=null)
     {
         if (!class_exists('WP_Twig_Templating')) {
@@ -26,14 +31,16 @@ abstract class NetGearPageController{
         }
         if (!$data) $data = array();
 
-        $other = ['controller'=>$this];
+        $other = ['controller'=>$this,'currentPluginTwigBasePath' => $this->pluginBaseDir().'views/'];
 
         $_data = array_merge($data,$other);
-        WP_Twig_Templating::istance()->displayCustomPage($this->pluginBaseDir() . $view, $_data);
+        WP_Twig_Templating::istance()->displayCustomPage($this->pluginBaseDir().'views/' . $view, $_data);
     }
 
     public function addTwigFunction($name, $function){
-        $this->twig_functions[$name] = $function;
+        if( !array_key_exists($name,$this->twig_functions)){
+            $this->twig_functions[$name] = $function;
+        }
     }
 
     protected function displayAjaxTemplate($view, $data=null){
@@ -68,9 +75,17 @@ abstract class NetGearPageController{
         return array_key_exists('action',$_GET) ? $_GET['action'] : 'default';
     }
 
-    private function pluginBaseDir(){
+    protected function pluginBaseDir(){
         $ar = explode('/',dirname($this->file));
+        if( in_array("plugins",$ar)){
+            while( $ar[count($ar)-2] != "plugins" && count($ar) != 0 ){
+                unset($ar[count($ar)-1]);
+            }
+        }
         return (end($ar).'/');
+//        $ar = explode('/',plugin_dir_path($this->file));
+//        $ar = array_filter($ar);
+//        return (end($ar).'/');
     }
 
     private function check_methods(){
@@ -94,14 +109,19 @@ abstract class NetGearPageController{
     }
     private function addTwigFunctions(){
         foreach($this->twig_functions as $name => $function){
-            WP_Twig_Templating::istance()->getTwig()->addFunction(new Twig_SimpleFunction($name,$function));
+            $twig = WP_Twig_Templating::istance()->getTwig();
+            try{
+                $twig->addFunction(new Twig_SimpleFunction($name,$function));
+            }catch (LogicException $e){
+                echo "C'è qualche problema di render. Controlla che il file .html.twig non sia renderizzato più volte";
+            }
         }
     }
 
     /************************   PUBLIC METHODS   ***********************/
 
     /**
-     * @param $file __FILE__
+     * @param $file string __FILE__
      */
     public final function __construct($file){
         $this->bootstraped = false;
@@ -124,22 +144,6 @@ abstract class NetGearPageController{
     }
 
     /**
-     * Ritorna il percorso dell'icona di menu
-     * @return null|string
-     */
-    public function getIconUrl(){
-        return null;
-    }
-
-    /**
-     * Ritorna la posizione della voce di menu nell'elenco
-     * @return null|integer
-     */
-    public function getMenuPosition(){
-        return null;
-    }
-
-    /**
      * Aggiunge un sottocontroller con relativo link al menu del controller
      * @param NetGearPageController $page
      */
@@ -147,7 +151,6 @@ abstract class NetGearPageController{
         $slug = $this->getSlug() . '_'. get_class($page).'_'.count($this->sub_controllers);
         array_push($this->sub_controllers, $page->setSlug($slug));
         $page->setPlugin($this->getPlugin());
-        //todo set parent controller
         $page->bootstrap();
     }
 
@@ -157,6 +160,21 @@ abstract class NetGearPageController{
      */
     public final function getSubPageControllers(){
         return $this->sub_controllers;
+    }
+
+    /**
+     * Ritorna il percorso dell'icona di menu
+     * @return null|string
+     */
+    public function getIconUrl(){
+        return null;
+    }
+    /**
+     * Ritorna la posizione della voce di menu nell'elenco
+     * @return null|float
+     */
+    public function getMenuPosition(){
+        return null;
     }
 
     /**
@@ -202,8 +220,27 @@ abstract class NetGearPageController{
         $this->bootstraped = true;
     }
 
+    private function isMainPageController()
+    {
+        foreach ($this->getPlugin()->getPageController() as $subController) {
+            $subClass = get_class($subController);
+            if( $subClass == get_class($this) ){
+                return true;
+            }
+        }
+        foreach ($this->getPlugin()->getNetworkPageController() as $subController) {
+            $subClass = get_class($subController);
+            if( $subClass == get_class($this) ){
+                return true;
+            }
+        }
+        return false;
+    }
 
     public final function render_page(){
+        if( count($this->getSubPageControllers()) > 0 ){
+            return;
+        }
         $this->addTwigFunctions();
 
         if($this->getAction() == 'default'){
@@ -215,7 +252,16 @@ abstract class NetGearPageController{
         if(method_exists($this,$method)){
             call_user_func(array($this,$method));
         }else{
-            throw new Execption("$method not exists!");
+            $isSubMethod = false;
+            foreach ($this->getSubPageControllers() as $subController) {
+                if(method_exists($subController,$method)) {
+                    call_user_func(array($subController, $method));
+                    $isSubMethod = true;
+                }
+            }
+            if( !$isSubMethod ){
+                throw new Exception("$method not exists!");
+            }
         }
     }
 
@@ -240,9 +286,22 @@ abstract class NetGearPageController{
 
     public function getActionUrl($action){
         if(!method_exists($this,$action.'Action')){
-            return "javascript:alert('Action non presente: $action');";
+            $found = false;
+            foreach ($this->getSubPageControllers() as $subController) {
+                if(method_exists($subController,$action.'Action')) {
+                    $found = true;
+                }
+            }
+            if( !$found){
+                return "javascript:alert('Action non presente: $action');";
+            }
+//            return "javascript:alert('Action non presente: $action');";
         }
-        return "/wp-admin/admin.php?page=".$this->getSlug().'&action='.$action;
+        if(is_network_admin()){
+            return "/wp-admin/network/admin.php?page=".$this->getSlug().'&action='.$action;
+        }else{
+            return "/wp-admin/admin.php?page=".$this->getSlug().'&action='.$action;
+        }
     }
 
     public function getAjaxActionUrl($action){

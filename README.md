@@ -71,8 +71,8 @@ The plugin class name have to be the camel case version of the plugin folder nam
 
 class MyHelloWorldPlugin extends NetGear{
     protected function init(){
-        $this->addPageController(new MyFirstController(__FILE__));
         $this->enqueueStyle('public/css/helloword.css');
+        $this->addPageController(new MyFirstController());
     }
 }
 ```
@@ -80,6 +80,8 @@ class MyHelloWorldPlugin extends NetGear{
 
 *controller/MyFirstController.php*
 ```php
+<?php
+
 class MyFirstController extends NetGearPageController{
     public function getMenuTitle(){
         return "Hello world";
@@ -92,7 +94,7 @@ class MyFirstController extends NetGearPageController{
     }
 
     public function defaultAction(){
-        echo "<div id="my-hello-world">Hello world!</div>"
+        echo '<div id="my-hello-world">Hello world!</div>';
     }
   }
 ```
